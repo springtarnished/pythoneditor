@@ -3,142 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <title>Python Code Runner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --bg: #f9fafb;
-      --text: #111827;
-      --accent: #2563eb;
-      --error: #dc2626;
-      --success: #16a34a;
-      --border: #d1d5db;
-      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
     body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-      min-height: 100vh;
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f4f4f4;
     }
 
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 1rem;
+    textarea, input[type="text"] {
+      width: 100%;
+      max-width: 800px;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      box-sizing: border-box;
     }
 
     textarea {
-      width: 100%;
-      max-width: 800px;
-      height: 250px;
-      font-family: monospace;
-      font-size: 14px;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      height: 200px;
       resize: vertical;
-      background: white;
     }
 
     button {
-      margin-top: 12px;
-      padding: 10px 20px;
+      padding: 10px 16px;
       font-size: 16px;
       border: none;
       border-radius: 6px;
-      background: var(--accent);
+      background: #007bff;
       color: white;
       cursor: pointer;
-      transition: background 0.2s ease-in-out;
+      margin-right: 10px;
     }
 
     button:hover {
-      background: #1e40af;
+      background: #0056b3;
     }
 
-    .output-container {
-      margin-top: 2rem;
-      width: 100%;
-      max-width: 800px;
-      background: white;
-      border: 1px solid var(--border);
+    .output {
+      margin-top: 20px;
+      background: #fff;
+      padding: 12px;
       border-radius: 8px;
-      padding: 16px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      border: 1px solid #ddd;
+      white-space: pre-wrap;
+      font-family: monospace;
     }
 
     .label {
       font-weight: bold;
-      margin-top: 12px;
-      margin-bottom: 4px;
+      margin-top: 10px;
     }
 
-    .output-text {
-      white-space: pre-wrap;
-      background: #f3f4f6;
+    .output-content {
+      background: #fefefe;
       padding: 10px;
       border-radius: 6px;
-      font-family: monospace;
+      overflow-x: auto;
       font-size: 14px;
+      line-height: 1.5;
+      margin-top: 10px;
     }
 
-    .loading {
-      color: var(--accent);
-      font-style: italic;
+    .output-content h1, .output-content h2, .output-content h3 {
+      font-weight: bold;
+      margin-top: 1em;
     }
 
-    @media (max-width: 600px) {
-      textarea {
-        height: 200px;
-      }
+    .output-content p {
+      margin: 0.5em 0;
+    }
+
+    .output-content a {
+      color: #007bff;
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
 
-  <h1>Python Code Runner</h1>
+  <h2>Python Code Runner / Web Scraper</h2>
 
-  <textarea id="code">print("Hello, World!")</textarea>
-  <button onclick="runCode()">▶ Run Code</button>
+  <textarea id="code">print("Hello, Android!")</textarea><br>
+  <button onclick="runCode()">▶ Run Python</button>
 
-  <div class="output-container" id="output">
+  <div class="label">Scrape a URL</div>
+  <input type="text" id="scrapeUrl" placeholder="https://example.com">
+  <button onclick="scrapeSite()">🌐 Scrape</button>
+
+  <div class="output" id="output">
     <div class="label">Output:</div>
-    <div class="output-text" id="stdout">—</div>
+    <div id="stdout">—</div>
 
     <div class="label">Error:</div>
-    <div class="output-text" id="stderr">—</div>
+    <div id="stderr">—</div>
+
+    <div class="label">Scraped HTML:</div>
+    <div id="scraped-html" class="output-content">—</div>
   </div>
 
   <script>
+    const API_URL = "https://your-backend.up.railway.app/run"; // replace this with your actual backend
+
     async function runCode() {
       const code = document.getElementById("code").value;
-      const stdout = document.getElementById("stdout");
-      const stderr = document.getElementById("stderr");
+      document.getElementById("stdout").textContent = "Running...";
+      document.getElementById("stderr").textContent = "—";
+      document.getElementById("scraped-html").innerHTML = "—";
 
-      // Show loading indicator
-      stdout.textContent = "Running...";
-      stderr.textContent = "—";
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
 
-      try {
-        const res = await fetch("https://pythonbackend-production-8784.up.railway.app/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
-        });
-
-        const data = await res.json();
-        stdout.textContent = data.output || "—";
-        stderr.textContent = data.error || "—";
-      } catch (err) {
-        stdout.textContent = "—";
-        stderr.textContent = "Failed to connect to server.";
+      const data = await res.json();
+      document.getElementById("stdout").textContent = data.output || "—";
+      document.getElementById("stderr").textContent = data.error || "—";
+      if (data.html) {
+        document.getElementById("scraped-html").innerHTML = data.html;
       }
+    }
+
+    async function scrapeSite() {
+      const url = document.getElementById("scrapeUrl").value.trim();
+      if (!url) return alert("Enter a URL to scrape");
+
+      document.getElementById("stdout").textContent = "—";
+      document.getElementById("stderr").textContent = "—";
+      document.getElementById("scraped-html").innerHTML = "Scraping...";
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scrape_url: url })
+      });
+
+      const data = await res.json();
+      document.getElementById("stdout").textContent = data.output || "—";
+      document.getElementById("stderr").textContent = data.error || "—";
+      document.getElementById("scraped-html").innerHTML = data.html || "—";
     }
   </script>
 
