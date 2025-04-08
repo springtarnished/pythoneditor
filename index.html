@@ -69,7 +69,7 @@
   <script>
     async function runCode() {
       const code = document.getElementById("code").value;
-      const res = await fetch("http://127.0.0.1:5000/run", {
+      const res = await fetch("http://10.250.26.251:5000/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code })
