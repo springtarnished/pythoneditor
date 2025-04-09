@@ -713,4 +713,42 @@
         });
 
         const data = await res.json();
-        document.getElementById("stdout").textContent = data.outp
+        document.getElementById("stdout").textContent = data.output || "";
+        document.getElementById("stderr").textContent = data.error || "";
+        document.getElementById("execution-time").textContent = 
+          data.execution_time ? `${data.execution_time.toFixed(2)}s` : "-";
+        document.getElementById("memory-usage").textContent = 
+          data.memory_usage ? `${(data.memory_usage / (1024 * 1024)).toFixed(2)} MB` : "-";
+        
+        // Check if there's a plot image
+        if (data.has_plot) {
+          document.getElementById("visualization-container").style.display = "block";
+          const timestamp = new Date().getTime(); // Cache-busting
+          document.getElementById("plot-frame").src = 
+            `https://your-backend.up.railway.app/plot/${timestamp}`;
+        }
+        
+        // Add to history
+        addToHistory(files[currentFile], data);
+        
+      } catch (error) {
+        document.getElementById("stderr").textContent = `Failed to connect to server: ${error.message}`;
+      } finally {
+        runButton.disabled = false;
+        runButton.innerHTML = 'Run Code';
+      }
+    }
+
+    // Initialize with a keyboard shortcut hint
+    document.getElementById("stdout").textContent = "Ready to run code. Press Ctrl+Enter or click 'Run Code' to execute.";
+    
+    // Add event listeners for tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const fileName = tab.dataset.id;
+        switchFile(fileName);
+      });
+    });
+  </script>
+</body>
+</html>
