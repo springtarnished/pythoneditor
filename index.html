@@ -2,29 +2,112 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Python Code Runner</title>
+  <!-- CodeMirror for better code editing -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/theme/eclipse.min.css">
   <style>
+    :root {
+      --bg-color: #f4f4f4;
+      --text-color: #333;
+      --card-bg: #fff;
+      --border-color: #ddd;
+      --button-color: #007bff;
+      --button-hover: #0056b3;
+    }
+
+    .dark-mode {
+      --bg-color: #222;
+      --text-color: #eee;
+      --card-bg: #333;
+      --border-color: #555;
+      --button-color: #0066cc;
+      --button-hover: #004499;
+    }
+
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       padding: 20px;
-      background: #f4f4f4;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
-    textarea, input[type="text"] {
-      width: 100%;
-      max-width: 800px;
-      font-family: monospace;
-      font-size: 14px;
-      padding: 10px;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 28px;
+      margin-left: 10px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(32px);
+    }
+
+    .CodeMirror {
+      height: 300px;
       border-radius: 8px;
-      border: 1px solid #ccc;
-      margin-bottom: 10px;
-      box-sizing: border-box;
+      border: 1px solid var(--border-color);
+      font-size: 14px;
     }
 
-    textarea {
-      height: 200px;
-      resize: vertical;
+    .control-panel {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
     }
 
     button {
@@ -32,121 +115,218 @@
       font-size: 16px;
       border: none;
       border-radius: 6px;
-      background: #007bff;
+      background: var(--button-color);
       color: white;
       cursor: pointer;
-      margin-right: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
 
     button:hover {
-      background: #0056b3;
+      background: var(--button-hover);
+    }
+
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .output-container {
+      margin-top: 20px;
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
     }
 
     .output {
-      margin-top: 20px;
-      background: #fff;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
       white-space: pre-wrap;
-      font-family: monospace;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    #stdout {
+      background: #f8f9fa;
+      color: #212529;
+    }
+
+    .dark-mode #stdout {
+      background: #292d3e;
+      color: #eee;
+    }
+
+    #stderr {
+      background: #fff8f8;
+      color: #d63031;
+    }
+
+    .dark-mode #stderr {
+      background: #3c2a2a;
+      color: #ff6b6b;
     }
 
     .label {
       font-weight: bold;
-      margin-top: 10px;
+      margin-bottom: 5px;
     }
 
-    .output-content {
-      background: #fefefe;
+    .templates-dropdown {
       padding: 10px;
       border-radius: 6px;
-      overflow-x: auto;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-top: 10px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      color: var(--text-color);
     }
 
-    .output-content h1, .output-content h2, .output-content h3 {
-      font-weight: bold;
-      margin-top: 1em;
-    }
-
-    .output-content p {
-      margin: 0.5em 0;
-    }
-
-    .output-content a {
-      color: #007bff;
-      text-decoration: underline;
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .control-panel {
+        flex-direction: column;
+      }
+      
+      button, .templates-dropdown {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
-
-  <h2>Python Code Runner / Web Scraper</h2>
-
-  <textarea id="code">print("Hello, Android!")</textarea><br>
-  <button onclick="runCode()">▶ Run Python</button>
-
-  <div class="label">Scrape a URL</div>
-  <input type="text" id="scrapeUrl" placeholder="https://example.com">
-  <button onclick="scrapeSite()">🌐 Scrape</button>
-
-  <div class="output" id="output">
-    <div class="label">Output:</div>
-    <div id="stdout">—</div>
-
-    <div class="label">Error:</div>
-    <div id="stderr">—</div>
-
-    <div class="label">Scraped HTML:</div>
-    <div id="scraped-html" class="output-content">—</div>
+  <div class="header">
+    <h2>Python Code Runner</h2>
+    <div class="theme-toggle">
+      <span>Dark Mode</span>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
   </div>
 
+  <div id="editor-container"></div>
+  
+  <div class="control-panel">
+    <button id="run-button" onclick="runCode()">Run Code</button>
+    <button onclick="clearOutput()">Clear Output</button>
+    <select class="templates-dropdown" onchange="loadTemplate(this.value)">
+      <option value="">-- Select Template --</option>
+      <option value="hello">Hello World</option>
+      <option value="math">Math Operations</option>
+      <option value="list">List Operations</option>
+      <option value="file">File I/O</option>
+      <option value="web">Simple Web Request</option>
+    </select>
+  </div>
+
+  <div class="output-container">
+    <div class="label">Output:</div>
+    <div id="stdout" class="output"></div>
+    <div class="label">Error:</div>
+    <div id="stderr" class="output"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.3/mode/python/python.min.js"></script>
   <script>
-    const API_URL = "https://your-backend.up.railway.app/run"; // replace this with your actual backend
+    // Templates
+    const templates = {
+      hello: 'print("Hello, World!")\n\n# Try changing the message above\nname = input("What is your name? ")\nprint(f"Hello, {name}!")',
+      math: '# Basic math operations\nx = 10\ny = 5\n\nprint(f"Addition: {x + y}")\nprint(f"Subtraction: {x - y}")\nprint(f"Multiplication: {x * y}")\nprint(f"Division: {x / y}")\nprint(f"Power: {x ** y}")',
+      list: '# List operations\nfruits = ["apple", "banana", "cherry"]\n\nprint("Original list:", fruits)\n\n# Add an item\nfruits.append("orange")\nprint("After append:", fruits)\n\n# Remove an item\nfruits.remove("banana")\nprint("After remove:", fruits)\n\n# Loop through the list\nprint("\\nLooping through the list:")\nfor fruit in fruits:\n    print(f"- {fruit}")',
+      file: '# File operations\n\n# Create a file\nwith open("test.txt", "w") as f:\n    f.write("Hello, this is a test file.\\n")\n    f.write("This is the second line.\\n")\n    f.write("This is the third line.\\n")\n\nprint("File created successfully!")\n\n# Read the file\nprint("\\nReading the file:")\nwith open("test.txt", "r") as f:\n    content = f.read()\n    print(content)',
+      web: '# Simple web request\nimport requests\n\nresponse = requests.get("https://jsonplaceholder.typicode.com/todos/1")\ndata = response.json()\n\nprint("Response status:", response.status_code)\nprint("Response data:", data)'
+    };
 
-    async function runCode() {
-      const code = document.getElementById("code").value;
-      document.getElementById("stdout").textContent = "Running...";
-      document.getElementById("stderr").textContent = "—";
-      document.getElementById("scraped-html").innerHTML = "—";
+    // Initialize CodeMirror
+    const editor = CodeMirror(document.getElementById("editor-container"), {
+      mode: "python",
+      theme: "eclipse",
+      lineNumbers: true,
+      indentUnit: 4,
+      tabSize: 4,
+      indentWithTabs: false,
+      smartIndent: true,
+      extraKeys: {
+        "Ctrl-Enter": function() { runCode(); },
+        "Cmd-Enter": function() { runCode(); }
+      },
+      value: 'print("Hello, Android!")'
+    });
 
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code })
-      });
+    // Theme toggling
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('change', function() {
+      document.body.classList.toggle('dark-mode');
+      if (this.checked) {
+        editor.setOption('theme', 'dracula');
+      } else {
+        editor.setOption('theme', 'eclipse');
+      }
+    });
 
-      const data = await res.json();
-      document.getElementById("stdout").textContent = data.output || "—";
-      document.getElementById("stderr").textContent = data.error || "—";
-      if (data.html) {
-        document.getElementById("scraped-html").innerHTML = data.html;
+    // Load templates
+    function loadTemplate(template) {
+      if (template && templates[template]) {
+        editor.setValue(templates[template]);
       }
     }
 
-    async function scrapeSite() {
-      const url = document.getElementById("scrapeUrl").value.trim();
-      if (!url) return alert("Enter a URL to scrape");
-
-      document.getElementById("stdout").textContent = "—";
-      document.getElementById("stderr").textContent = "—";
-      document.getElementById("scraped-html").innerHTML = "Scraping...";
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scrape_url: url })
-      });
-
-      const data = await res.json();
-      document.getElementById("stdout").textContent = data.output || "—";
-      document.getElementById("stderr").textContent = data.error || "—";
-      document.getElementById("scraped-html").innerHTML = data.html || "—";
+    // Clear output
+    function clearOutput() {
+      document.getElementById("stdout").textContent = "";
+      document.getElementById("stderr").textContent = "";
     }
-  </script>
 
+    // Run code
+    async function runCode() {
+      const runButton = document.getElementById("run-button");
+      runButton.disabled = true;
+      runButton.innerHTML = '<span class="spinner"></span> Running...';
+      
+      clearOutput();
+      
+      const code = editor.getValue();
+      
+      try {
+        const res = await fetch("https://your-backend.up.railway.app/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code })
+        });
+
+        const data = await res.json();
+        document.getElementById("stdout").textContent = data.output || "";
+        document.getElementById("stderr").textContent = data.error || "";
+      } catch (error) {
+        document.getElementById("stderr").textContent = `Failed to connect to server: ${error.message}`;
+      } finally {
+        runButton.disabled = false;
+        runButton.innerHTML = 'Run Code';
+      }
+    }
+
+    // Initialize with a keyboard shortcut hint
+    document.getElementById("stdout").textContent = "Ready to run code. Press Ctrl+Enter or click 'Run Code' to execute.";
+  </script>
 </body>
 </html>
