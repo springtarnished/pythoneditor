@@ -16,6 +16,8 @@
       --border-color: #ddd;
       --button-color: #007bff;
       --button-hover: #0056b3;
+      --tab-active: #e7f0ff;
+      --tab-hover: #f0f8ff;
     }
 
     .dark-mode {
@@ -25,6 +27,8 @@
       --border-color: #555;
       --button-color: #0066cc;
       --button-hover: #004499;
+      --tab-active: #2a3b50;
+      --tab-hover: #1e2e42;
     }
 
     body {
@@ -154,12 +158,23 @@
       border: 1px solid var(--border-color);
     }
 
+    .visualization-container {
+      margin-top: 20px;
+      background: var(--card-bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      display: none;
+    }
+
     .output {
       white-space: pre-wrap;
       font-family: 'Courier New', Courier, monospace;
       padding: 10px;
       border-radius: 4px;
       overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
     }
 
     #stdout {
@@ -195,6 +210,136 @@
       color: var(--text-color);
     }
 
+    /* Tabs styles */
+    .tabs {
+      display: flex;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 5px 5px 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      margin-right: 2px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab.active {
+      background-color: var(--tab-active);
+      border-color: var(--border-color);
+      border-bottom-color: transparent;
+    }
+
+    .tab:hover:not(.active) {
+      background-color: var(--tab-hover);
+    }
+
+    .tab-close {
+      margin-left: 5px;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    .tab-close:hover {
+      opacity: 1;
+    }
+
+    .add-tab {
+      padding: 8px 12px;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+
+    /* History panel */
+    .history-panel {
+      position: fixed;
+      right: -350px;
+      top: 0;
+      width: 350px;
+      height: 100%;
+      background: var(--card-bg);
+      transition: right 0.3s ease;
+      z-index: 100;
+      box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .history-panel.open {
+      right: 0;
+    }
+
+    .history-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .history-item {
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .history-item:hover {
+      background: var(--tab-hover);
+    }
+
+    .history-timestamp {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .history-code {
+      margin-top: 5px;
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    /* Stats panel */
+    .stats {
+      display: flex;
+      margin-top: 10px;
+      font-size: 14px;
+      gap: 15px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .plot-container {
+      width: 100%;
+      height: 400px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    #plot-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 10px;
@@ -206,6 +351,15 @@
       
       button, .templates-dropdown {
         width: 100%;
+      }
+
+      .tabs {
+        overflow-x: auto;
+        padding-bottom: 5px;
+      }
+
+      .history-panel {
+        width: 300px;
       }
     }
   </style>
@@ -222,11 +376,19 @@
     </div>
   </div>
 
+  <!-- Tabs for multiple files -->
+  <div class="tabs" id="file-tabs">
+    <div class="tab active" data-id="main.py">main.py</div>
+    <button class="add-tab" onclick="addNewFile()">+ New File</button>
+  </div>
+
   <div id="editor-container"></div>
   
   <div class="control-panel">
     <button id="run-button" onclick="runCode()">Run Code</button>
     <button onclick="clearOutput()">Clear Output</button>
+    <button onclick="toggleVisualization()">Toggle Visualization</button>
+    <button onclick="toggleHistory()">History</button>
     <select class="templates-dropdown" onchange="loadTemplate(this.value)">
       <option value="">-- Select Template --</option>
       <option value="hello">Hello World</option>
@@ -234,6 +396,7 @@
       <option value="list">List Operations</option>
       <option value="file">File I/O</option>
       <option value="web">Simple Web Request</option>
+      <option value="visualization">Matplotlib Visualization</option>
     </select>
   </div>
 
@@ -242,6 +405,33 @@
     <div id="stdout" class="output"></div>
     <div class="label">Error:</div>
     <div id="stderr" class="output"></div>
+    <div class="stats">
+      <div class="stat-item">
+        <span>Execution Time:</span>
+        <span id="execution-time">-</span>
+      </div>
+      <div class="stat-item">
+        <span>Memory Usage:</span>
+        <span id="memory-usage">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visualization Container -->
+  <div class="visualization-container" id="visualization-container">
+    <div class="label">Visualization:</div>
+    <div class="plot-container">
+      <iframe id="plot-frame" title="Plot Output"></iframe>
+    </div>
+  </div>
+
+  <!-- History Panel -->
+  <div class="history-panel" id="history-panel">
+    <span class="history-close" onclick="toggleHistory()">&times;</span>
+    <h3>Code History</h3>
+    <div id="history-items">
+      <!-- History items will be added here dynamically -->
+    </div>
   </div>
 
   <!-- Scripts -->
@@ -254,7 +444,8 @@
       math: '# Basic math operations\nx = 10\ny = 5\n\nprint(f"Addition: {x + y}")\nprint(f"Subtraction: {x - y}")\nprint(f"Multiplication: {x * y}")\nprint(f"Division: {x / y}")\nprint(f"Power: {x ** y}")',
       list: '# List operations\nfruits = ["apple", "banana", "cherry"]\n\nprint("Original list:", fruits)\n\n# Add an item\nfruits.append("orange")\nprint("After append:", fruits)\n\n# Remove an item\nfruits.remove("banana")\nprint("After remove:", fruits)\n\n# Loop through the list\nprint("\\nLooping through the list:")\nfor fruit in fruits:\n    print(f"- {fruit}")',
       file: '# File operations\n\n# Create a file\nwith open("test.txt", "w") as f:\n    f.write("Hello, this is a test file.\\n")\n    f.write("This is the second line.\\n")\n    f.write("This is the third line.\\n")\n\nprint("File created successfully!")\n\n# Read the file\nprint("\\nReading the file:")\nwith open("test.txt", "r") as f:\n    content = f.read()\n    print(content)',
-      web: '# Simple web request\nimport requests\n\nresponse = requests.get("https://jsonplaceholder.typicode.com/todos/1")\ndata = response.json()\n\nprint("Response status:", response.status_code)\nprint("Response data:", data)'
+      web: '# Simple web request\nimport requests\n\nresponse = requests.get("https://jsonplaceholder.typicode.com/todos/1")\ndata = response.json()\n\nprint("Response status:", response.status_code)\nprint("Response data:", data)',
+      visualization: '# Matplotlib visualization\nimport matplotlib.pyplot as plt\nimport numpy as np\n\n# Generate data\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\n# Create plot\nplt.figure(figsize=(10, 6))\nplt.plot(x, y, "b-", linewidth=2, label="sin(x)")\nplt.title("Sine Wave")\nplt.xlabel("x")\nplt.ylabel("sin(x)")\nplt.grid(True)\nplt.legend()\n\n# Save to an image file that the backend will serve\nplt.savefig("plot.png")\nplt.close()\n\nprint("Plot generated successfully!")'
     };
 
     // Initialize CodeMirror
@@ -273,6 +464,12 @@
       value: 'print("Hello, Android!")'
     });
 
+    // Store all files
+    let files = {
+      "main.py": 'print("Hello, Android!")'
+    };
+    let currentFile = "main.py";
+
     // Theme toggling
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('change', function() {
@@ -282,7 +479,106 @@
       } else {
         editor.setOption('theme', 'eclipse');
       }
+      localStorage.setItem('darkMode', this.checked);
     });
+
+    // Load dark mode preference from localStorage
+    if (localStorage.getItem('darkMode') === 'true') {
+      themeToggle.checked = true;
+      document.body.classList.add('dark-mode');
+      editor.setOption('theme', 'dracula');
+    }
+
+    // File management functions
+    function addNewFile() {
+      const fileName = prompt("Enter file name (must end with .py):");
+      if (!fileName) return;
+      
+      if (!fileName.endsWith('.py')) {
+        alert("File name must end with .py");
+        return;
+      }
+      
+      if (files[fileName]) {
+        alert("File already exists!");
+        return;
+      }
+      
+      // Save current file content
+      files[currentFile] = editor.getValue();
+      
+      // Create new file
+      files[fileName] = '# New file: ' + fileName + '\n\nprint("This is ' + fileName + '")';
+      
+      // Add new tab
+      addTab(fileName);
+      
+      // Switch to new file
+      switchFile(fileName);
+    }
+
+    function addTab(fileName) {
+      const tabsContainer = document.getElementById('file-tabs');
+      const newTab = document.createElement('div');
+      newTab.className = 'tab';
+      newTab.dataset.id = fileName;
+      newTab.innerHTML = fileName + '<span class="tab-close" onclick="closeFile(event, \'' + fileName + '\')">&times;</span>';
+      newTab.addEventListener('click', (e) => {
+        if (e.target.className !== 'tab-close') {
+          switchFile(fileName);
+        }
+      });
+      
+      // Insert before the add button
+      tabsContainer.insertBefore(newTab, document.querySelector('.add-tab'));
+    }
+
+    function switchFile(fileName) {
+      // Save current file content
+      files[currentFile] = editor.getValue();
+      
+      // Remove active class from all tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Add active class to selected tab
+      document.querySelector(`.tab[data-id="${fileName}"]`).classList.add('active');
+      
+      // Set editor content to selected file
+      editor.setValue(files[fileName]);
+      
+      // Update current file
+      currentFile = fileName;
+    }
+
+    function closeFile(event, fileName) {
+      event.stopPropagation();
+      
+      // Cannot close the last file
+      if (Object.keys(files).length <= 1) {
+        alert("Cannot close the last file.");
+        return;
+      }
+      
+      // Confirm before closing
+      if (!confirm(`Close ${fileName}? Any unsaved changes will be lost.`)) {
+        return;
+      }
+      
+      // Remove tab
+      const tab = document.querySelector(`.tab[data-id="${fileName}"]`);
+      tab.remove();
+      
+      // Remove file from files object
+      delete files[fileName];
+      
+      // If closing the current file, switch to the first file
+      if (fileName === currentFile) {
+        const firstFileName = Object.keys(files)[0];
+        switchFile(firstFileName);
+      }
+    }
 
     // Load templates
     function loadTemplate(template) {
@@ -295,6 +591,97 @@
     function clearOutput() {
       document.getElementById("stdout").textContent = "";
       document.getElementById("stderr").textContent = "";
+      document.getElementById("execution-time").textContent = "-";
+      document.getElementById("memory-usage").textContent = "-";
+      document.getElementById("visualization-container").style.display = "none";
+    }
+
+    // Toggle visualization container
+    function toggleVisualization() {
+      const container = document.getElementById("visualization-container");
+      if (container.style.display === "none" || container.style.display === "") {
+        container.style.display = "block";
+      } else {
+        container.style.display = "none";
+      }
+    }
+
+    // Toggle history panel
+    function toggleHistory() {
+      const panel = document.getElementById("history-panel");
+      panel.classList.toggle("open");
+      
+      // Load history items if panel is opening
+      if (panel.classList.contains("open")) {
+        loadHistoryItems();
+      }
+    }
+
+    // Load history items from localStorage
+    function loadHistoryItems() {
+      const historyContainer = document.getElementById("history-items");
+      historyContainer.innerHTML = "";
+      
+      // Get history from localStorage
+      const history = JSON.parse(localStorage.getItem("codeHistory") || "[]");
+      
+      if (history.length === 0) {
+        historyContainer.innerHTML = "<p>No history yet.</p>";
+        return;
+      }
+      
+      // Add each item to the container
+      history.forEach((item, index) => {
+        const historyItem = document.createElement("div");
+        historyItem.className = "history-item";
+        historyItem.onclick = () => loadFromHistory(item);
+        
+        const timestamp = document.createElement("div");
+        timestamp.className = "history-timestamp";
+        timestamp.textContent = new Date(item.timestamp).toLocaleString();
+        
+        const code = document.createElement("div");
+        code.className = "history-code";
+        code.textContent = item.code.substring(0, 100) + (item.code.length > 100 ? "..." : "");
+        
+        historyItem.appendChild(timestamp);
+        historyItem.appendChild(code);
+        historyContainer.appendChild(historyItem);
+      });
+    }
+
+    // Load code from history
+    function loadFromHistory(item) {
+      // Ask to save current changes
+      if (confirm("Load code from history? Current changes will be replaced.")) {
+        editor.setValue(item.code);
+        toggleHistory(); // Close history panel
+      }
+    }
+
+    // Add to history
+    function addToHistory(code, result) {
+      // Get existing history
+      const history = JSON.parse(localStorage.getItem("codeHistory") || "[]");
+      
+      // Add new item
+      history.unshift({
+        code: code,
+        result: {
+          output: result.output,
+          error: result.error,
+          execution_time: result.execution_time
+        },
+        timestamp: new Date().getTime()
+      });
+      
+      // Keep only the last 20 items
+      if (history.length > 20) {
+        history.pop();
+      }
+      
+      // Save back to localStorage
+      localStorage.setItem("codeHistory", JSON.stringify(history));
     }
 
     // Run code
@@ -305,28 +692,25 @@
       
       clearOutput();
       
-      const code = editor.getValue();
+      // Save all files first
+      files[currentFile] = editor.getValue();
+      
+      // Prepare files object for backend
+      const filesToSend = {};
+      for (const [name, content] of Object.entries(files)) {
+        filesToSend[name] = content;
+      }
       
       try {
         const res = await fetch("https://your-backend.up.railway.app/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({ 
+            code: files[currentFile],
+            main_file: currentFile,
+            files: filesToSend
+          })
         });
 
         const data = await res.json();
-        document.getElementById("stdout").textContent = data.output || "";
-        document.getElementById("stderr").textContent = data.error || "";
-      } catch (error) {
-        document.getElementById("stderr").textContent = `Failed to connect to server: ${error.message}`;
-      } finally {
-        runButton.disabled = false;
-        runButton.innerHTML = 'Run Code';
-      }
-    }
-
-    // Initialize with a keyboard shortcut hint
-    document.getElementById("stdout").textContent = "Ready to run code. Press Ctrl+Enter or click 'Run Code' to execute.";
-  </script>
-</body>
-</html>
+        document.getElementById("stdout").textContent = data.outp
