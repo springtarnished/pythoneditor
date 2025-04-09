@@ -702,7 +702,7 @@
       }
       
       try {
-        const res = await fetch("https://your-backend.up.railway.app/run", {
+        const res = await fetch("https://pythonbackend-production-8784.up.railway.app/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
@@ -725,7 +725,7 @@
           document.getElementById("visualization-container").style.display = "block";
           const timestamp = new Date().getTime(); // Cache-busting
           document.getElementById("plot-frame").src = 
-            `https://your-backend.up.railway.app/plot/${timestamp}`;
+            `https://pythonbackend-production-8784.up.railway.app/plot/${timestamp}`;
         }
         
         // Add to history
